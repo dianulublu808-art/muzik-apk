@@ -68,6 +68,41 @@ class WaveEngine(
         return WaveBatch(filtered, errors.distinct())
     }
 
+    /** Поиск по выбранным площадкам (для глобального поиска). */
+    suspend fun search(
+        query: String,
+        sources: Set<WaveSource>,
+        perSource: Int = 12,
+    ): WaveBatch {
+        val clients = buildList {
+            if (WaveSource.SOUNDCLOUD in sources) add(soundCloud)
+            if (WaveSource.YOUTUBE in sources) add(youTube)
+            if (WaveSource.VK in sources) add(vk)
+        }
+        if (clients.isEmpty()) return WaveBatch(emptyList(), emptyList())
+
+        val errors = mutableListOf<String>()
+        val perClient = mutableListOf<List<WaveTrack>>()
+
+        coroutineScope {
+            val jobs = clients.map { client ->
+                client to async { runCatching { client.search(query, perSource) } }
+            }
+            jobs.forEach { (client, job) ->
+                job.await()
+                    .onSuccess { tracks -> perClient += tracks }
+                    .onFailure { error ->
+                        errors += (error.message?.takeIf { it.isNotBlank() }
+                            ?: "${client.source.label}: не удалось выполнить поиск")
+                    }
+            }
+        }
+
+        val merged = interleave(perClient)
+        val seen = HashSet<String>()
+        return WaveBatch(merged.filter { seen.add(it.uid) }, errors.distinct())
+    }
+
     suspend fun localTracks(limit: Int): List<WaveTrack> {
         val tracks = runCatching { musicRepository.tracks.first() }.getOrDefault(emptyList())
         return tracks

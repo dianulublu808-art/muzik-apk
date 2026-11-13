@@ -77,6 +77,7 @@ fun MuzikApp(container: AppContainer) {
     val libraryState by libraryViewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by searchViewModel.query.collectAsStateWithLifecycle()
     val searchResults by searchViewModel.results.collectAsStateWithLifecycle()
+    val remoteSearch by searchViewModel.remote.collectAsStateWithLifecycle()
     val playlists by playlistViewModel.playlists.collectAsStateWithLifecycle()
     val selectedPlaylist by playlistViewModel.selectedPlaylist.collectAsStateWithLifecycle()
     val playlistMessage by playlistViewModel.message.collectAsStateWithLifecycle()
@@ -141,6 +142,15 @@ fun MuzikApp(container: AppContainer) {
         val message = waveState.message ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         waveViewModel.clearMessage()
+    }
+
+    LaunchedEffect(searchViewModel) {
+        searchViewModel.message.collect { message ->
+            if (message != null) {
+                snackbarHostState.showSnackbar(message)
+                searchViewModel.clearMessage()
+            }
+        }
     }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -250,6 +260,7 @@ fun MuzikApp(container: AppContainer) {
                         SearchScreen(
                             query = searchQuery,
                             results = searchResults,
+                            remote = remoteSearch,
                             onQueryChange = searchViewModel::onQueryChange,
                             onClearQuery = searchViewModel::clearQuery,
                             onPlayTrack = { track, queue ->
@@ -260,6 +271,9 @@ fun MuzikApp(container: AppContainer) {
                             },
                             onAddToPlaylist = { track ->
                                 addTarget = AddToPlaylistTarget(track.id, track.title)
+                            },
+                            onPlayRemote = { track, queue ->
+                                searchViewModel.playRemote(track, queue)
                             },
                         )
                     }
