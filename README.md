@@ -1,0 +1,79 @@
+# muzik
+
+Локальный музыкальный плеер для Android на Kotlin + Jetpack Compose с интерфейсом Liquid Glass.
+
+## Возможности
+
+- **Локальная медиатека.** Сканирование аудиофайлов устройства через `MediaStore`: треки, альбомы, исполнители, длительность и обложки.
+- **Плеер.** Media3 ExoPlayer с фоновым воспроизведением через `MediaSessionService`, управлением из уведомления и с экрана блокировки.
+- **Очередь.** Просмотр очереди, переход к любому треку, перемешивание и повтор (выкл. / все / один).
+- **Избранное.** Отдельная таблица в Room — лайки сохраняются после повторного сканирования.
+- **Плейлисты.** Создание, переименование, удаление и добавление треков из любого экрана.
+- **Поиск.** По названию трека, исполнителю и альбому с debounce-запросом к Room.
+- **Настройки.** Системная / светлая / тёмная тема, 5 акцентных цветов, динамические цвета Material You на Android 12+, анимированный фон.
+- **Современный UI.** Прозрачные стеклянные карточки, градиентные рамки, blur-орбы на API 31+ и мягкий fallback на более старых версиях.
+
+Приложение не загружает музыку из интернета и не отправляет медиатеку на серверы.
+
+## Технологии
+
+| Слой | Реализация |
+|---|---|
+| UI | Jetpack Compose, Material 3, Navigation Compose |
+| Архитектура | MVVM, `StateFlow`, AndroidViewModel |
+| Данные | Room (треки, избранное, плейлисты), DataStore (настройки) |
+| Медиатека | `MediaStore.Audio` |
+| Плеер | Media3 ExoPlayer + MediaSessionService |
+| Обложки | Coil |
+| Сборка | AGP 8.7.3, Kotlin 2.0.21, KSP, compileSdk 35, minSdk 26 |
+
+## Структура
+
+```text
+app/src/main/java/app/muzik/
+├── MainActivity.kt              # точка входа, edge-to-edge
+├── MuzikApplication.kt          # AppContainer и ручной DI
+├── data/
+│   ├── local/                   # Room: entities, DAO, database
+│   ├── media/                   # сканер MediaStore
+│   ├── repository/              # MusicRepository
+│   └── settings/                # DataStore-настройки
+├── domain/                      # Track, Album, Artist, Playlist
+├── playback/                    # PlaybackManager + MediaSessionService
+├── ui/
+│   ├── MuzikApp.kt              # NavHost, permission-flow, mini player
+│   ├── components/              # Liquid Glass, TrackRow, диалоги
+│   ├── screens/                 # home, search, library, player, settings…
+│   └── theme/                   # цвета, типографика, темы
+└── util/                        # форматирование, разрешения
+```
+
+## Экранная навигация
+
+`home` → `search` → `library` → `settings`, а также `player`, `favorites`, `album/{albumId}`, `artist/{artistName}`, `playlist/{playlistId}`.
+
+## Сборка
+
+Требования: JDK 17, Android SDK Platform 35, Build-Tools 35.0.0.
+
+```bash
+./gradlew assembleDebug
+```
+
+В проекте есть Gradle Wrapper (8.11.1), поэтому отдельно устанавливать Gradle не нужно. Для Windows используйте `gradlew.bat`.
+
+APK: `app/build/outputs/apk/debug/app-debug.apk`
+
+Либо откройте проект в Android Studio и нажмите **Run ▶**.
+
+## GitHub Actions
+
+В репозитории есть workflow `.github/workflows/build.yml`: он собирает debug APK на каждый push/PR и позволяет запустить сборку вручную через **Actions → Android CI → Run workflow**. Готовый APK скачивается из артефактов сборки.
+
+## Разрешения
+
+- `READ_MEDIA_AUDIO` (Android 13+) / `READ_EXTERNAL_STORAGE` (до Android 13) — чтение локальной музыки.
+- `POST_NOTIFICATIONS` (Android 13+) — уведомление плеера.
+- `FOREGROUND_SERVICE` и `FOREGROUND_SERVICE_MEDIA_PLAYBACK` — фоновое воспроизведение.
+
+Без доступа к аудио приложение показывает экран с объяснением и кнопкой запроса разрешения. Сканирование запускается только после выдачи доступа.
