@@ -70,6 +70,7 @@ import app.muzik.ui.components.EmptyState
 import app.muzik.ui.components.GlassCard
 import app.muzik.ui.components.GlassIconButton
 import app.muzik.ui.components.GlassPill
+import app.muzik.ui.components.StatChip
 import app.muzik.ui.theme.LocalMuzikColors
 import app.muzik.util.formatDuration
 
@@ -93,7 +94,7 @@ fun PlayerScreen(
 ) {
     val colors = LocalMuzikColors.current
     var showQueue by remember { mutableStateOf(false) }
-    var dragValue by remember(state.currentTrack?.id) { mutableFloatStateOf(-1f) }
+    var dragValue by remember(state.currentTrack?.uid) { mutableFloatStateOf(-1f) }
     val track = state.currentTrack
 
     Column(
@@ -167,7 +168,7 @@ fun PlayerScreen(
             Spacer(Modifier.height(16.dp))
             Artwork(
                 model = track.artworkUri,
-                seed = track.id,
+                seed = track.artworkSeed,
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
@@ -317,20 +318,25 @@ fun PlayerScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                val isFavorite = track.id in favoriteIds
-                GlassPill(
-                    text = if (isFavorite) "В избранном" else "В избранное",
-                    selected = isFavorite,
-                    icon = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    onClick = { onToggleFavorite(track.id) },
-                )
-                GlassPill(
-                    text = "В плейлист",
-                    selected = false,
-                    icon = Icons.Rounded.PlaylistAdd,
-                    onClick = { onAddToPlaylist(track) },
-                )
+                if (track.isRemote) {
+                    StatChip(text = "Источник: ${track.sourceLabel ?: "онлайн"}")
+                } else {
+                    val isFavorite = track.id in favoriteIds
+                    GlassPill(
+                        text = if (isFavorite) "В избранном" else "В избранное",
+                        selected = isFavorite,
+                        icon = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        onClick = { onToggleFavorite(track.id) },
+                    )
+                    GlassPill(
+                        text = "В плейлист",
+                        selected = false,
+                        icon = Icons.Rounded.PlaylistAdd,
+                        onClick = { onAddToPlaylist(track) },
+                    )
+                }
                 GlassPill(
                     text = "Очередь · ${state.queue.size}",
                     selected = false,
@@ -395,12 +401,12 @@ fun PlayerScreen(
                     )
                 }
                 Spacer(Modifier.height(12.dp))
-                val currentIndex = state.queue.indexOfFirst { it.id == state.currentTrack?.id }
+                val currentIndex = state.currentIndex.coerceIn(0, (state.queue.size - 1).coerceAtLeast(0))
                 LazyColumn(
                     modifier = Modifier.heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    itemsIndexed(state.queue, key = { index, item -> "$index-${item.id}" }) { index, item ->
+                    itemsIndexed(state.queue, key = { _, item -> item.uid }) { index, item ->
                         val active = index == currentIndex
                         Row(
                             modifier = Modifier
@@ -422,7 +428,7 @@ fun PlayerScreen(
                         ) {
                             Artwork(
                                 model = item.artworkUri,
-                                seed = item.id,
+                                seed = item.artworkSeed,
                                 modifier = Modifier.size(42.dp),
                                 cornerRadius = 11.dp,
                                 iconSize = 18.dp,

@@ -56,6 +56,8 @@ import app.muzik.ui.screens.search.SearchScreen
 import app.muzik.ui.screens.search.SearchViewModel
 import app.muzik.ui.screens.settings.SettingsScreen
 import app.muzik.ui.screens.settings.SettingsViewModel
+import app.muzik.ui.screens.wave.WaveScreen
+import app.muzik.ui.screens.wave.WaveViewModel
 import app.muzik.ui.theme.MuzikTheme
 import app.muzik.util.hasAudioPermission
 import app.muzik.util.requiredAudioPermission
@@ -69,6 +71,7 @@ fun MuzikApp(container: AppContainer) {
     val playlistViewModel: PlaylistViewModel = viewModel()
     val settingsViewModel: SettingsViewModel = viewModel()
     val playerViewModel: PlayerViewModel = viewModel()
+    val waveViewModel: WaveViewModel = viewModel()
 
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
     val libraryState by libraryViewModel.uiState.collectAsStateWithLifecycle()
@@ -78,6 +81,7 @@ fun MuzikApp(container: AppContainer) {
     val selectedPlaylist by playlistViewModel.selectedPlaylist.collectAsStateWithLifecycle()
     val playlistMessage by playlistViewModel.message.collectAsStateWithLifecycle()
     val playerState by playerViewModel.state.collectAsStateWithLifecycle()
+    val waveState by waveViewModel.state.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val navController = rememberNavController()
@@ -131,6 +135,12 @@ fun MuzikApp(container: AppContainer) {
         val message = playlistMessage ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         playlistViewModel.clearMessage()
+    }
+
+    LaunchedEffect(waveState.message) {
+        val message = waveState.message ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        waveViewModel.clearMessage()
     }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -223,6 +233,19 @@ fun MuzikApp(container: AppContainer) {
                         )
                     }
 
+                    composable("wave") {
+                        WaveScreen(
+                            state = waveState,
+                            onStart = waveViewModel::startWave,
+                            onTogglePlay = waveViewModel::togglePlayPause,
+                            onNext = waveViewModel::skip,
+                            onPrevious = waveViewModel::previous,
+                            onLike = waveViewModel::like,
+                            onDislike = waveViewModel::dislike,
+                            onOpenSettings = { navigateToTab("settings") },
+                        )
+                    }
+
                     composable("search") {
                         SearchScreen(
                             query = searchQuery,
@@ -281,6 +304,10 @@ fun MuzikApp(container: AppContainer) {
                             onAccent = settingsViewModel::setAccent,
                             onDynamicColor = settingsViewModel::setDynamicColor,
                             onAnimatedBackground = settingsViewModel::setAnimatedBackground,
+                            onWaveSource = settingsViewModel::setWaveSource,
+                            onWaveYoutubeInstance = settingsViewModel::setWaveYoutubeInstance,
+                            onWaveVkToken = settingsViewModel::setWaveVkToken,
+                            onClearWaveFeedback = settingsViewModel::clearWaveFeedback,
                         )
                     }
 

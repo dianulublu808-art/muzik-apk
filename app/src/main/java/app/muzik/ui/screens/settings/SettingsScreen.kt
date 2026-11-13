@@ -20,24 +20,33 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Wallpaper
+import androidx.compose.material.icons.rounded.Waves
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.muzik.BuildConfig
+import app.muzik.data.remote.WaveSource
 import app.muzik.data.settings.AccentColor
 import app.muzik.data.settings.MuzikSettings
 import app.muzik.data.settings.ThemeMode
@@ -64,9 +73,19 @@ fun SettingsScreen(
     onAccent: (AccentColor) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onAnimatedBackground: (Boolean) -> Unit,
+    onWaveSource: (WaveSource, Boolean) -> Unit,
+    onWaveYoutubeInstance: (String) -> Unit,
+    onWaveVkToken: (String) -> Unit,
+    onClearWaveFeedback: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalMuzikColors.current
+    var youtubeInstance by remember(settings.waveYoutubeInstance) {
+        mutableStateOf(settings.waveYoutubeInstance)
+    }
+    var vkToken by remember(settings.waveVkToken) {
+        mutableStateOf(settings.waveVkToken)
+    }
 
     LazyColumn(
         modifier = modifier
@@ -249,6 +268,101 @@ fun SettingsScreen(
         }
 
         item {
+            SectionHeader(title = "Волна")
+        }
+        item {
+            GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+                WaveSource.remote.forEachIndexed { index, source ->
+                    SettingSwitchRow(
+                        icon = Icons.Rounded.Cloud,
+                        title = source.label,
+                        subtitle = when (source) {
+                            WaveSource.SOUNDCLOUD -> "Поиск и потоки из каталога SoundCloud"
+                            WaveSource.YOUTUBE -> "Через ваш Invidious или Piped сервер"
+                            WaveSource.VK -> "Нужен ваш access token ниже"
+                            WaveSource.LOCAL -> "Локальные файлы"
+                        },
+                        checked = source in settings.waveSources,
+                        enabled = true,
+                        onCheckedChange = { enabled -> onWaveSource(source, enabled) },
+                    )
+                    if (index != WaveSource.remote.lastIndex) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(colors.divider),
+                        )
+                    }
+                }
+            }
+        }
+        item {
+            GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+                SettingTextField(
+                    label = "Сервер YouTube",
+                    hint = "https://inv.nadeko.net",
+                    value = youtubeInstance,
+                    onValueChange = {
+                        youtubeInstance = it
+                        onWaveYoutubeInstance(it)
+                    },
+                )
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(colors.divider),
+                )
+                SettingTextField(
+                    label = "VK access token",
+                    hint = "Вставьте токен с правами на аудио",
+                    value = vkToken,
+                    secret = true,
+                    onValueChange = {
+                        vkToken = it
+                        onWaveVkToken(it)
+                    },
+                )
+            }
+        }
+        item {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Waves,
+                        contentDescription = null,
+                        tint = colors.accent,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Text(
+                        text = "Как работает «Волна»",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = colors.textPrimary,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "«Волна» — бесконечный поток треков. Приложение обращается к " +
+                        "открытым интерфейсам SoundCloud, YouTube и VK: это не официальные " +
+                        "API, они могут перестать отвечать или ограничить доступ. YouTube " +
+                        "работает через указанный вами сервер Invidious/Piped, VK требует " +
+                        "ваш личный токен. Лайки и дизлайки влияют на подбор.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                )
+                Spacer(Modifier.height(12.dp))
+                GlassPill(
+                    text = "Сбросить предпочтения",
+                    selected = false,
+                    icon = Icons.Rounded.Refresh,
+                    onClick = onClearWaveFeedback,
+                )
+            }
+        }
+
+        item {
             SectionHeader(title = "О приложении")
         }
         item {
@@ -287,7 +401,9 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = "muzik собирает музыку из памяти устройства. Приложение не загружает треки из интернета и не отправляет вашу медиатеку на серверы.",
+                    text = "muzik играет музыку из памяти устройства. Треки «Волны» " +
+                        "подгружаются из открытых интерфейсов SoundCloud, YouTube и VK " +
+                        "только пока вы слушаете волну.",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
                 )
@@ -355,6 +471,47 @@ private fun SettingSwitchRow(
                 uncheckedTrackColor = colors.surfaceVariant,
                 uncheckedBorderColor = Color.Transparent,
             ),
+        )
+    }
+}
+
+@Composable
+private fun SettingTextField(
+    label: String,
+    hint: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    secret: Boolean = false,
+) {
+    val colors = LocalMuzikColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.textPrimary,
+        )
+        Spacer(Modifier.height(6.dp))
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = {
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                )
+            },
+            visualTransformation = if (secret) {
+                PasswordVisualTransformation()
+            } else {
+                androidx.compose.ui.text.input.VisualTransformation.None
+            },
         )
     }
 }

@@ -11,6 +11,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import app.muzik.data.remote.WaveSource
+import app.muzik.data.remote.WaveTrack
 import app.muzik.domain.Track
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -117,6 +119,31 @@ class PlaybackManager(private val context: Context) {
         playQueue(actualQueue, index, shuffle = false)
     }
 
+    /** Запускает «Волну»: очередь из локальных и сетевых треков. */
+    fun playWave(tracks: List<WaveTrack>, startIndex: Int = 0) {
+        val playable = tracks.filter { it.isPlayable }
+        if (playable.isEmpty()) return
+        val mediaItems = playable.map { it.toMediaItem() }
+        val safeIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
+        _state.update { it.copy(error = null) }
+        withController { player ->
+            player.shuffleModeEnabled = false
+            player.setMediaItems(mediaItems, safeIndex, 0L)
+            player.prepare()
+            player.play()
+        }
+    }
+
+    /** Добавляет в конец очереди очередную порцию «Волны». */
+    fun appendWave(tracks: List<WaveTrack>) {
+        val items = tracks.filter { it.isPlayable }.map { it.toMediaItem() }
+        if (items.isEmpty()) return
+        withController { player ->
+            player.addMediaItems(items)
+            updateState(player)
+        }
+    }
+
     fun togglePlayPause() {
         _state.update { it.copy(error = null) }
         withController { player ->
@@ -207,6 +234,7 @@ class PlaybackManager(private val context: Context) {
                 isConnected = true,
                 currentTrack = currentTrack,
                 queue = queue,
+                currentIndex = player.currentMediaItemIndex.coerceAtLeast(0),
                 isPlaying = player.isPlaying,
                 isBuffering = player.playbackState == Player.STATE_BUFFERING,
                 positionMs = player.currentPosition.coerceAtLeast(0L),
@@ -256,21 +284,49 @@ class PlaybackManager(private val context: Context) {
             .build()
     }
 
+    private fun WaveTrack.toMediaItem(): MediaItem {
+        val extras = Bundle().apply {
+            putLong(KEY_DURATION_MS, durationMs)
+            putString(KEY_SOURCE_LABEL, source.label)
+            putBoolean(KEY_REMOTE, source != WaveSource.LOCAL)
+        }
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(displayArtist)
+            .setArtworkUri(artworkUrl?.let(Uri::parse))
+            .setIsPlayable(true)
+            .setIsBrowsable(false)
+            .setExtras(extras)
+            .build()
+        return MediaItem.Builder()
+            .setMediaId(uid)
+            .setUri(streamUrl)
+            .setMediaMetadata(metadata)
+            .build()
+    }
+
     private fun MediaItem.toNowPlaying(): NowPlaying? {
         val metadata = mediaMetadata
         if (mediaId.isBlank() && metadata.title == null) return null
+        val extras = metadata.extras
+        val remote = extras?.getBoolean(KEY_REMOTE) ?: mediaId.contains(':')
         return NowPlaying(
-            id = mediaId.toLongOrNull() ?: 0L,
+            id = if (remote) 0L else mediaId.toLongOrNull() ?: 0L,
+            uid = mediaId,
             title = metadata.title?.toString()?.takeIf { it.isNotBlank() } ?: "Без названия",
             artist = metadata.artist?.toString().orEmpty(),
             album = metadata.albumTitle?.toString().orEmpty(),
             artworkUri = metadata.artworkUri?.toString(),
-            durationMs = metadata.extras?.getLong(KEY_DURATION_MS) ?: 0L,
+            durationMs = extras?.getLong(KEY_DURATION_MS) ?: 0L,
+            sourceLabel = extras?.getString(KEY_SOURCE_LABEL),
+            isRemote = remote,
         )
     }
 
     companion object {
         private const val KEY_DURATION_MS = "muzik_duration_ms"
+        private const val KEY_SOURCE_LABEL = "muzik_source_label"
+        private const val KEY_REMOTE = "muzik_remote"
         private const val PROGRESS_UPDATE_MS = 500L
         private const val RESTART_THRESHOLD_MS = 3_000L
     }

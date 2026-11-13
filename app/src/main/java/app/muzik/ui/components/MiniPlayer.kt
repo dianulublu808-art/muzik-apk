@@ -60,7 +60,7 @@ fun MiniPlayer(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Artwork(
                 model = track.artworkUri,
-                seed = track.id,
+                seed = track.artworkSeed,
                 modifier = Modifier.size(44.dp),
                 cornerRadius = 12.dp,
                 iconSize = 20.dp,

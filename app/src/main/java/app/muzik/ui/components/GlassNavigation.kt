@@ -14,6 +14,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Waves
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ data class BottomBarItem(
 
 val bottomBarItems = listOf(
     BottomBarItem("home", "Главная", Icons.Rounded.Home),
+    BottomBarItem("wave", "Волна", Icons.Rounded.Waves),
     BottomBarItem("search", "Поиск", Icons.Rounded.Search),
     BottomBarItem("library", "Медиатека", Icons.Rounded.LibraryMusic),
     BottomBarItem("settings", "Настройки", Icons.Rounded.Settings),

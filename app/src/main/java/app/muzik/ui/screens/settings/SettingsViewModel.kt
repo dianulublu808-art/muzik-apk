@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.muzik.data.repository.MusicRepository
+import app.muzik.data.remote.WaveSource
 import app.muzik.data.settings.AccentColor
 import app.muzik.data.settings.MuzikSettings
 import app.muzik.data.settings.SettingsRepository
@@ -48,6 +49,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setAnimatedBackground(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setAnimatedBackground(enabled) }
+    }
+
+    fun setWaveSource(source: WaveSource, enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setWaveSource(source, enabled) }
+    }
+
+    fun setWaveYoutubeInstance(instance: String) {
+        viewModelScope.launch { settingsRepository.setWaveYoutubeInstance(instance) }
+    }
+
+    fun setWaveVkToken(token: String) {
+        viewModelScope.launch { settingsRepository.setWaveVkToken(token) }
+    }
+
+    fun clearWaveFeedback() {
+        viewModelScope.launch { settingsRepository.clearWaveFeedback() }
     }
 
     fun refreshLibrary() {

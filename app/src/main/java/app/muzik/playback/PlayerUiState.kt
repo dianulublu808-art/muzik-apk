@@ -2,17 +2,25 @@ package app.muzik.playback
 
 data class NowPlaying(
     val id: Long,
+    val uid: String,
     val title: String,
     val artist: String,
     val album: String,
     val artworkUri: String?,
     val durationMs: Long,
-)
+    val sourceLabel: String? = null,
+    val isRemote: Boolean = false,
+) {
+    /** Стабильный ключ для градиента-заглушки обложки. */
+    val artworkSeed: Long
+        get() = if (isRemote) uid.hashCode().toLong() else id
+}
 
 data class PlayerUiState(
     val isConnected: Boolean = false,
     val currentTrack: NowPlaying? = null,
     val queue: List<NowPlaying> = emptyList(),
+    val currentIndex: Int = 0,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val positionMs: Long = 0L,
